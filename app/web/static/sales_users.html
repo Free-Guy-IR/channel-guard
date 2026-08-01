@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>کاربران ربات فروش</title>
+<link rel="stylesheet" href="/static/theme.css" />
+<style>
+  .picker-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
+  .picker-row .window-picker { margin-bottom: 0; }
+  .search-box {
+    flex: 1; min-width: 200px; max-width: 280px; padding: 10px 16px; border-radius: 999px;
+    border: 1px solid var(--card-border); background: var(--card-bg); box-shadow: var(--shadow-card);
+    font-size: 12.5px; color: var(--text-primary);
+  }
+  .search-box:focus { outline: none; border-color: var(--primary); }
+  .sync-note { font-size: 11.5px; color: var(--text-muted); margin-bottom: 16px; }
+  .pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 14px; font-size: 12.5px; color: var(--text-secondary); }
+  .pager button {
+    border: 1px solid var(--card-border); background: #f8f7fb; border-radius: 999px; padding: 6px 14px;
+    font-size: 12.5px; cursor: pointer; color: var(--text-primary);
+  }
+  .pager button:disabled { opacity: .4; cursor: default; }
+  .pager button:not(:disabled):hover { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+  .pay-btn {
+    border: 1px solid var(--card-border); background: #f8f7fb; border-radius: 999px; padding: 4px 12px;
+    font-size: 11.5px; cursor: pointer; color: var(--primary); font-weight: 600;
+  }
+  .pay-btn:hover { background: var(--primary-soft); border-color: var(--primary); }
+  .pay-status-chip { display: inline-block; font-size: 11px; padding: 2px 9px; border-radius: 999px; border: 1px solid; }
+  .pay-status-chip.paid { background: rgba(31,161,89,0.1); color: var(--good); border-color: rgba(31,161,89,0.28); }
+  .pay-status-chip.reject { background: rgba(220,53,69,0.1); color: var(--critical); border-color: rgba(220,53,69,0.28); }
+  .pay-status-chip.expire { background: rgba(217,141,27,0.1); color: var(--warning); border-color: rgba(217,141,27,0.28); }
+  .pay-status-chip.waiting { background: rgba(59,91,253,0.1); color: var(--primary); border-color: rgba(59,91,253,0.28); }
+  .pay-status-chip.other { background: #f4f3fa; color: var(--text-secondary); border-color: var(--card-border); }
+  .payments-summary { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .payments-summary .item {
+    font-size: 12px; padding: 6px 12px; border-radius: 10px; background: #f8f7fb; border: 1px solid var(--card-border);
+  }
+  .su-modal-box { max-width: 720px; }
+  #users-table thead th[data-sort] { cursor: pointer; user-select: none; }
+  #users-table thead th[data-sort]:hover { color: var(--text-primary); }
+  .sort-ind { display: inline-block; width: 10px; margin-inline-start: 3px; font-size: 9px; color: var(--primary); }
+
+  .block-btn { border-color: rgba(220,53,69,0.3); color: var(--critical); }
+  .block-btn:hover { background: rgba(220,53,69,0.08); border-color: var(--critical); color: var(--critical); }
+  .block-modal-box { max-width: 640px; }
+  .radio-row { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; }
+  .radio-row label { display: flex; align-items: center; gap: 5px; cursor: pointer; font-weight: 400; color: var(--text-primary); }
+  .join-age-row { display: flex; gap: 8px; align-items: center; }
+  .join-age-row .block-input { flex: 1; }
+  .chip-btn {
+    border: 1px solid var(--card-border); background: #f8f7fb; border-radius: 999px; padding: 8px 14px;
+    font-size: 11.5px; cursor: pointer; color: var(--text-primary); white-space: nowrap;
+  }
+  .chip-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+  .danger-btn { color: var(--critical); border-color: rgba(220,53,69,0.3); }
+  .danger-btn:hover:not(:disabled) { background: rgba(220,53,69,0.08); border-color: var(--critical); }
+  .danger-btn:disabled { opacity: .45; cursor: default; }
+</style>
+</head>
+<body>
+<script>window.ADMIN_BASE = "__ADMIN_BASE__";</script>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="side-brand"><span class="mark">🛰️</span><span class="name">پایش کانال</span></div>
+    <div class="channel-picker"><select id="channel-select"></select></div>
+    <nav class="side-nav">
+      <a class="side-link" id="dash-link" href="#"><span class="ic">📊</span>داشبورد</a>
+      <a class="side-link" id="nodes-link" href="#"><span class="ic">🌐</span>نودها</a>
+      <a class="side-link" id="surveys-link" href="#"><span class="ic">📋</span>نظرسنجی‌ها</a>
+      <a class="side-link" id="sales-link" href="#"><span class="ic">💰</span>آنالیز فروش</a>
+      <a class="side-link active" id="sales-users-link" href="#"><span class="ic">👥</span>کاربران فروش</a>
+      <a class="side-link" id="backup-link" href="#"><span class="ic">💾</span>بکاپ</a>
+    </nav>
+  </aside>
+
+  <main class="main-content">
+    <div class="content-header">
+      <h1>مدیریت کاربران ربات فروش</h1>
+      <button class="nav-btn block-btn" id="open-block-btn">🚫 مسدودسازی گروهی</button>
+    </div>
+
+    <div class="page-wrap">
+
+      <div class="sync-note" id="sync-note">در حال بارگذاری وضعیت همگام‌سازی...</div>
+
+      <div class="stat-grid">
+        <div class="stat-tile glass" style="--tile-glow: rgba(59,91,253,0.16)">
+          <div class="label">کل کاربران ربات فروش</div>
+          <div class="value" id="stat-total">-</div>
+        </div>
+        <div class="stat-tile glass" style="--tile-glow: rgba(217,141,27,0.16)">
+          <div class="label">بدون خرید (۳۰+ روز عضو)</div>
+          <div class="value" id="stat-np30">-</div>
+          <div class="meter"><div id="np30-fill" style="width:0%"></div></div>
+          <div class="stat-subnote" id="np30-count"></div>
+        </div>
+        <div class="stat-tile glass" style="--tile-glow: rgba(220,53,69,0.16)">
+          <div class="label">بدون خرید (۶۰+ روز عضو)</div>
+          <div class="value" id="stat-np60">-</div>
+          <div class="meter"><div id="np60-fill" style="width:0%"></div></div>
+          <div class="stat-subnote" id="np60-count"></div>
+        </div>
+        <div class="stat-tile glass" style="--tile-glow: rgba(130,86,224,0.16)">
+          <div class="label">تست گرفته (۳۰+ روز عضو)</div>
+          <div class="value" id="stat-tested30">-</div>
+          <div class="meter"><div id="tested30-fill" style="width:0%"></div></div>
+          <div class="stat-subnote" id="tested30-count"></div>
+        </div>
+      </div>
+
+      <div class="picker-row">
+        <div class="window-picker glass" id="filter-picker">
+          <button data-f="" class="active">همه</button>
+          <button data-f="no_purchase_30">بدون خرید ۳۰+ روز</button>
+          <button data-f="no_purchase_60">بدون خرید ۶۰+ روز</button>
+          <button data-f="tested_30">تست گرفته ۳۰+ روز</button>
+        </div>
+        <input type="text" class="search-box" id="search-box" placeholder="جستجو با چت‌آیدی یا یوزرنیم..." />
+      </div>
+
+      <div class="card glass">
+        <div class="table-wrap" style="max-height: 560px;">
+          <table class="data-table" id="users-table">
+            <thead><tr>
+              <th data-sort="chat_id">چت‌آیدی<span class="sort-ind"></span></th>
+              <th data-sort="username">یوزرنیم<span class="sort-ind"></span></th>
+              <th data-sort="purchase_count">تعداد خرید<span class="sort-ind"></span></th>
+              <th data-sort="deposit_count">تعداد واریزی<span class="sort-ind"></span></th>
+              <th data-sort="unpaid_count">فاکتور پرداخت‌نشده<span class="sort-ind"></span></th>
+              <th data-sort="time_join">زمان عضویت<span class="sort-ind"></span></th>
+              <th data-sort="last_message_time">آخرین بازدید<span class="sort-ind"></span></th>
+              <th data-sort="limit_usertest">تست باقیمانده<span class="sort-ind"></span></th>
+              <th>پرداخت‌ها</th>
+            </tr></thead>
+            <tbody id="users-body"><tr><td colspan="9" class="empty-hint">در حال بارگذاری...</td></tr></tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <button id="prev-page">قبلی</button>
+          <span id="page-info">-</span>
+          <button id="next-page">بعدی</button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div class="modal-overlay" id="block-modal-overlay">
+  <div class="modal-box block-modal-box glass">
+    <h3>مسدودسازی گروهی کاربران</h3>
+    <div class="guide">فیلترهای زیر با هم AND می‌شن (همه باید برقرار باشن). قبل از اجرا حتماً پیش‌نمایش رو چک کن.</div>
+
+    <div class="block-form">
+      <div class="block-field">
+        <label>بر اساس خرید</label>
+        <div class="radio-row">
+          <label><input type="radio" name="purchase-filter" value="any" checked /> بدون فیلتر</label>
+          <label><input type="radio" name="purchase-filter" value="no_purchase" /> هیچ خریدی نداشتن</label>
+          <label><input type="radio" name="purchase-filter" value="has_purchase" /> حداقل یک خرید داشتن</label>
+        </div>
+      </div>
+      <div class="block-field">
+        <label>بر اساس واریزی</label>
+        <div class="radio-row">
+          <label><input type="radio" name="deposit-filter" value="any" checked /> بدون فیلتر</label>
+          <label><input type="radio" name="deposit-filter" value="no_deposit" /> هیچ واریزی‌ای نداشتن</label>
+          <label><input type="radio" name="deposit-filter" value="has_deposit" /> حداقل یک واریزی داشتن</label>
+        </div>
+      </div>
+      <div class="block-field">
+        <label>حداقل تعداد فاکتور پرداخت‌نشده</label>
+        <input type="number" min="0" id="block-min-unpaid" class="block-input" placeholder="خالی = بدون فیلتر" />
+      </div>
+      <div class="block-field">
+        <label>حداقل چند روز از عضویتشون تو ربات فروش گذشته باشه</label>
+        <div class="join-age-row">
+          <input type="number" min="0" id="block-min-join-age" class="block-input" placeholder="خالی = بدون فیلتر" />
+          <button type="button" class="chip-btn" data-days="30">۳۰ روز</button>
+          <button type="button" class="chip-btn" data-days="60">۶۰ روز</button>
+        </div>
+      </div>
+      <div class="block-field">
+        <label>دلیل مسدودسازی (الزامی - برای هر کاربر ثبت می‌شه)</label>
+        <textarea id="block-reason" class="block-input" rows="3" placeholder="مثلاً: بدون خرید و بدون فعالیت طولانی‌مدت"></textarea>
+      </div>
+    </div>
+
+    <div class="block-actions">
+      <button class="nav-btn" id="block-preview-btn">پیش‌نمایش</button>
+      <button class="nav-btn danger-btn" id="block-run-btn" disabled>تایید و اجرای مسدودسازی</button>
+    </div>
+
+    <div class="sync-note" id="block-preview-note"></div>
+    <div class="table-wrap" id="block-preview-wrap" style="max-height: 240px; display:none;">
+      <table class="data-table">
+        <thead><tr><th>چت‌آیدی</th><th>یوزرنیم</th><th>خرید</th><th>واریزی</th><th>فاکتور پرداخت‌نشده</th></tr></thead>
+        <tbody id="block-preview-body"></tbody>
+      </table>
+    </div>
+
+    <div id="block-progress-wrap" style="display:none; margin-top: 14px;">
+      <div class="meter"><div id="block-progress-fill" style="width:0%"></div></div>
+      <div class="sync-note" id="block-progress-note"></div>
+    </div>
+
+    <button class="close-btn" id="block-close-btn" style="margin-top:14px;">بستن</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="payments-modal-overlay">
+  <div class="modal-box su-modal-box glass">
+    <h3 id="payments-modal-title">پرداخت‌های کاربر</h3>
+    <div class="payments-summary" id="payments-summary"></div>
+    <div class="table-wrap" style="max-height: 50vh;">
+      <table class="data-table">
+        <thead><tr><th>شناسه</th><th>مبلغ</th><th>روش</th><th>تاریخ</th><th>وضعیت</th></tr></thead>
+        <tbody id="payments-body"><tr><td colspan="5" class="empty-hint">در حال بارگذاری...</td></tr></tbody>
+      </table>
+    </div>
+    <button class="close-btn" id="payments-close-btn" style="margin-top:14px;">بستن</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="add-channel-modal-overlay">
+  <div class="modal-box glass">
+    <h3>افزودن کانال و ربات فروش جدید</h3>
+    <div class="guide">قبل از ثبت، حتماً هم این ربات پنل هم ربات فروش جدید رو در کانال جدید ادمین کن. بعد از ثبت، برای فعال‌شدن این کانال باید سرویس ری‌استارت بشه.</div>
+    <div class="block-field">
+      <label>اسم دلخواه (برای نمایش تو پنل)</label>
+      <input type="text" id="ac-name" class="block-input" placeholder="مثلاً: کانال دوم" />
+    </div>
+    <div class="block-field">
+      <label>شناسه داخلی (فقط حروف انگلیسی کوچک، عدد یا خط‌تیره)</label>
+      <input type="text" id="ac-id" class="block-input" placeholder="مثلاً: second" />
+    </div>
+    <div class="block-field">
+      <label>آیدی عددی کانال</label>
+      <select id="ac-pending" class="block-input"><option value="">— اگه از لیست شناسایی‌شده‌ها هست، انتخابش کن —</option></select>
+      <input type="text" id="ac-channel-id" class="block-input" placeholder="یا دستی وارد کن، مثلاً: -1001234567890" style="margin-top:8px;" />
+    </div>
+    <div class="block-field">
+      <label>آدرس API ربات فروش</label>
+      <input type="text" id="ac-base-url" class="block-input" placeholder="https://example.com/api" />
+    </div>
+    <div class="block-field">
+      <label>توکن API ربات فروش</label>
+      <input type="text" id="ac-token" class="block-input" />
+    </div>
+    <div class="block-actions">
+      <button class="nav-btn" id="ac-submit-btn">ثبت کانال</button>
+    </div>
+    <div class="form-note" id="ac-note"></div>
+    <button class="close-btn" id="ac-close-btn" style="margin-top:14px;">بستن</button>
+  </div>
+</div>
+
+<script src="/static/sales_users.js"></script>
+</body>
+</html>

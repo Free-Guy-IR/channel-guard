@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>آنالیز فروش</title>
+<link rel="stylesheet" href="/static/theme.css" />
+<style>
+  .picker-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
+  canvas#salesTrendChart { max-height: 260px; }
+  canvas#panelChart { max-height: 300px; }
+  .sync-note { font-size: 11.5px; color: var(--text-muted); margin-bottom: 16px; }
+  .panel-bar-row {
+    display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--gridline);
+  }
+  .panel-bar-row:last-child { border-bottom: none; }
+  .panel-bar-name { flex: none; width: 38%; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .panel-bar-track { flex: 1; height: 10px; border-radius: 999px; background: rgba(59,91,253,0.08); overflow: hidden; }
+  .panel-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--primary), var(--series-purchase)); }
+  .panel-bar-count { flex: none; font-size: 12px; color: var(--text-secondary); width: 70px; text-align: left; font-variant-numeric: tabular-nums; }
+
+  .nav-btn.unverified-btn { margin-bottom: 16px; }
+  .pay-status-chip { display: inline-block; font-size: 11px; padding: 2px 9px; border-radius: 999px; border: 1px solid; }
+  .pay-status-chip.paid { background: rgba(31,161,89,0.1); color: var(--good); border-color: rgba(31,161,89,0.28); }
+  .pay-status-chip.reject { background: rgba(220,53,69,0.1); color: var(--critical); border-color: rgba(220,53,69,0.28); }
+  .pay-status-chip.expire { background: rgba(217,141,27,0.1); color: var(--warning); border-color: rgba(217,141,27,0.28); }
+  .pay-status-chip.other { background: #f4f3fa; color: var(--text-secondary); border-color: var(--card-border); }
+  .unverified-modal-box { max-width: 720px; }
+</style>
+</head>
+<body>
+<script>window.ADMIN_BASE = "__ADMIN_BASE__";</script>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="side-brand"><span class="mark">🛰️</span><span class="name">پایش کانال</span></div>
+    <div class="channel-picker"><select id="channel-select"></select></div>
+    <nav class="side-nav">
+      <a class="side-link" id="dash-link" href="#"><span class="ic">📊</span>داشبورد</a>
+      <a class="side-link" id="nodes-link" href="#"><span class="ic">🌐</span>نودها</a>
+      <a class="side-link" id="surveys-link" href="#"><span class="ic">📋</span>نظرسنجی‌ها</a>
+      <a class="side-link active" id="sales-link" href="#"><span class="ic">💰</span>آنالیز فروش</a>
+      <a class="side-link" id="sales-users-link" href="#"><span class="ic">👥</span>کاربران فروش</a>
+      <a class="side-link" id="backup-link" href="#"><span class="ic">💾</span>بکاپ</a>
+    </nav>
+  </aside>
+
+  <main class="main-content">
+    <div class="content-header">
+      <h1>آنالیز فروش</h1>
+    </div>
+
+    <div class="page-wrap">
+
+      <div class="picker-row">
+        <div class="window-picker glass" id="window-picker">
+          <button data-days="1">امروز</button>
+          <button data-days="7">۷ روز اخیر</button>
+          <button data-days="30" class="active">۳۰ روز اخیر</button>
+          <button data-days="90">۹۰ روز اخیر</button>
+          <button data-days="180">۱۸۰ روز اخیر</button>
+        </div>
+        <div class="window-picker glass" id="granularity-picker">
+          <button data-g="day" class="active">روزانه</button>
+          <button data-g="week">هفتگی</button>
+          <button data-g="month">ماهانه</button>
+        </div>
+      </div>
+
+      <div class="sync-note" id="range-note"></div>
+      <div class="sync-note" id="sync-note">در حال بارگذاری وضعیت همگام‌سازی...</div>
+
+      <button class="nav-btn unverified-btn" id="open-unverified-btn">📋 پرداخت‌های ارسالی برای تایید دستی</button>
+
+      <div class="stat-grid">
+        <div class="stat-tile glass" style="--tile-glow: rgba(59,91,253,0.16)">
+          <div class="label">تعداد فروش (این بازه)</div>
+          <div class="value" id="stat-count">-</div>
+        </div>
+        <div class="stat-tile glass" style="--tile-glow: rgba(31,161,89,0.16)">
+          <div class="label">مجموع درآمد (این بازه)</div>
+          <div class="value join" id="stat-revenue">-</div>
+        </div>
+        <div class="stat-tile glass" style="--tile-glow: rgba(130,86,224,0.16)">
+          <div class="label">میانگین قیمت هر فروش</div>
+          <div class="value" id="stat-avg">-</div>
+        </div>
+        <div class="stat-tile glass" style="--tile-glow: rgba(217,141,27,0.16)">
+          <div class="label">پرفروش‌ترین پنل</div>
+          <div class="value" id="stat-top-panel" style="font-size:16px;">-</div>
+        </div>
+        <div class="stat-tile glass" style="--tile-glow: rgba(59,182,224,0.16)">
+          <div class="label">پیش‌بینی درآمد ۳۰ روز آینده</div>
+          <div class="value" id="stat-forecast" style="font-size:18px;">-</div>
+          <div id="stat-forecast-hint" style="font-size:11px; color:var(--text-muted); margin-top:4px;"></div>
+        </div>
+      </div>
+
+      <div class="cols">
+        <div>
+          <div class="card glass">
+            <h2>روند درآمد <span class="hint" id="trend-hint">۳۰ روز اخیر · روزانه · تعداد فروش هم روی هاور نشون داده می‌شه</span></h2>
+            <canvas id="salesTrendChart"></canvas>
+          </div>
+
+          <div class="card glass">
+            <h2>سهم پنل‌ها از تعداد فروش</h2>
+            <div id="panel-bars"><div class="empty-hint">داده‌ای نیست</div></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card glass">
+            <h2>روند فروش هر پنل <span class="hint">پرفروش‌ترین‌ها</span></h2>
+            <canvas id="panelChart"></canvas>
+          </div>
+
+          <div class="card glass">
+            <h2>لیست پنل‌های پرفروش</h2>
+            <div class="table-wrap" style="max-height: 420px;">
+              <table class="data-table">
+                <thead><tr><th>نام پنل</th><th>تعداد فروش</th><th>مجموع درآمد</th></tr></thead>
+                <tbody id="panels-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div class="modal-overlay" id="unverified-modal-overlay">
+  <div class="modal-box unverified-modal-box glass">
+    <h3>پرداخت‌های ارسالی برای تایید دستی</h3>
+    <div class="sync-note" id="unverified-sync-note"></div>
+    <div class="table-wrap" style="max-height: 60vh;">
+      <table class="data-table">
+        <thead><tr><th>شناسه سفارش</th><th>چت‌آیدی</th><th>مبلغ</th><th>تاریخ ارسال</th><th>وضعیت</th></tr></thead>
+        <tbody id="unverified-body"><tr><td colspan="5" class="empty-hint">در حال بارگذاری...</td></tr></tbody>
+      </table>
+    </div>
+    <button class="close-btn" id="unverified-close-btn" style="margin-top:14px;">بستن</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="add-channel-modal-overlay">
+  <div class="modal-box glass">
+    <h3>افزودن کانال و ربات فروش جدید</h3>
+    <div class="guide">قبل از ثبت، حتماً هم این ربات پنل هم ربات فروش جدید رو در کانال جدید ادمین کن. بعد از ثبت، برای فعال‌شدن این کانال باید سرویس ری‌استارت بشه.</div>
+    <div class="block-field">
+      <label>اسم دلخواه (برای نمایش تو پنل)</label>
+      <input type="text" id="ac-name" class="block-input" placeholder="مثلاً: کانال دوم" />
+    </div>
+    <div class="block-field">
+      <label>شناسه داخلی (فقط حروف انگلیسی کوچک، عدد یا خط‌تیره)</label>
+      <input type="text" id="ac-id" class="block-input" placeholder="مثلاً: second" />
+    </div>
+    <div class="block-field">
+      <label>آیدی عددی کانال</label>
+      <select id="ac-pending" class="block-input"><option value="">— اگه از لیست شناسایی‌شده‌ها هست، انتخابش کن —</option></select>
+      <input type="text" id="ac-channel-id" class="block-input" placeholder="یا دستی وارد کن، مثلاً: -1001234567890" style="margin-top:8px;" />
+    </div>
+    <div class="block-field">
+      <label>آدرس API ربات فروش</label>
+      <input type="text" id="ac-base-url" class="block-input" placeholder="https://example.com/api" />
+    </div>
+    <div class="block-field">
+      <label>توکن API ربات فروش</label>
+      <input type="text" id="ac-token" class="block-input" />
+    </div>
+    <div class="block-actions">
+      <button class="nav-btn" id="ac-submit-btn">ثبت کانال</button>
+    </div>
+    <div class="form-note" id="ac-note"></div>
+    <button class="close-btn" id="ac-close-btn" style="margin-top:14px;">بستن</button>
+  </div>
+</div>
+
+<script src="/static/vendor/chart.min.js"></script>
+<script src="/static/sales.js"></script>
+</body>
+</html>

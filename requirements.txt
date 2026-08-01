@@ -1,0 +1,10 @@
+aiogram==3.15.0
+aiohttp==3.10.11
+aiomysql==0.2.0
+httpx==0.27.2
+jdatetime==5.0.0
+asyncssh==2.17.0
+# needed directly by aiomysql for MySQL 8's caching_sha2_password auth -
+# currently arrives transitively via asyncssh too, but pinned explicitly
+# so DB auth doesn't silently break if that transitive path ever changes.
+cryptography==49.0.0

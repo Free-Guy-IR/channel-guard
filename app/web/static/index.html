@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>پایش کانال</title>
+<link rel="stylesheet" href="/static/theme.css" />
+<style>
+  canvas#trendChart { max-height: 220px; }
+  .content-header .window-picker { margin-bottom: 0; }
+</style>
+</head>
+<body>
+<script>window.ADMIN_BASE = "__ADMIN_BASE__";</script>
+
+<div id="login-screen">
+  <div class="login-card glass">
+    <div class="brand">🛰️</div>
+    <h1>پنل پایش کانال</h1>
+    <p class="sub">برای ادامه رمز عبور را وارد کن</p>
+    <input id="login-password" type="password" placeholder="رمز عبور" autofocus />
+    <button id="login-btn">ورود</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="side-brand"><span class="mark">🛰️</span><span class="name">پایش کانال</span></div>
+      <div class="channel-picker">
+        <select id="channel-select"></select>
+        <button class="channel-settings-btn" id="channel-settings-btn" title="تنظیمات این کانال">⚙️</button>
+      </div>
+      <nav class="side-nav">
+        <a class="side-link active" id="dash-link" href="#"><span class="ic">📊</span>داشبورد</a>
+        <a class="side-link" id="nodes-link" href="#"><span class="ic">🌐</span>نودها</a>
+        <a class="side-link" id="sales-link" href="#"><span class="ic">💰</span>آنالیز فروش</a>
+        <a class="side-link" id="sales-users-link" href="#"><span class="ic">👥</span>کاربران فروش</a>
+        <a class="side-link" id="backup-link" href="#"><span class="ic">💾</span>بکاپ</a>
+      </nav>
+      <div class="side-status">
+        <span class="pill"><span class="dot" id="ws-dot"></span><span id="ws-label">اتصال زنده</span></span>
+        <span class="pill">اعضای فعلی کانال <strong id="channel-count">-</strong></span>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="content-header">
+        <h1>پایش کانال و فروش</h1>
+        <div class="window-picker glass" id="window-picker">
+          <button data-days="7" class="active">۷ روز اخیر</button>
+          <button data-days="30">۳۰ روز اخیر</button>
+          <button data-days="90">۹۰ روز اخیر</button>
+        </div>
+      </div>
+
+      <div class="page-wrap">
+    <div class="stat-grid">
+      <div class="stat-tile glass" style="--tile-glow: rgba(59,91,253,0.16)">
+        <div class="label">کل جوین‌های ثبت‌شده</div>
+        <div class="value join" id="stat-joins">-</div>
+      </div>
+      <div class="stat-tile glass" style="--tile-glow: rgba(226,73,92,0.16)">
+        <div class="label">کل لفت‌های ثبت‌شده</div>
+        <div class="value leave" id="stat-leaves">-</div>
+      </div>
+      <div class="stat-tile glass" style="--tile-glow: rgba(130,86,224,0.16)">
+        <div class="label">خالص تغییر اعضا</div>
+        <div class="value" id="stat-net">-</div>
+      </div>
+      <div class="stat-tile glass" style="--tile-glow: rgba(31,161,89,0.16)">
+        <div class="label">درصد خرید تازه‌واردها (این بازه)</div>
+        <div class="value" id="stat-purchase-rate">-</div>
+        <div class="meter"><div id="purchase-rate-fill" style="width:0%"></div></div>
+      </div>
+      <div class="stat-tile glass" style="--tile-glow: rgba(217,141,27,0.16)">
+        <div class="label">درصد خرید مجدد برگشتی‌ها (این بازه)</div>
+        <div class="value" id="stat-returning-purchase-rate">-</div>
+        <div class="stat-subnote" id="stat-returning-purchase-count"></div>
+      </div>
+      <div class="stat-tile glass" style="--tile-glow: rgba(130,86,224,0.16)">
+        <div class="label">درصد تست‌گرفته‌های تازه‌وارد (این بازه)</div>
+        <div class="value" id="stat-tested-rate">-</div>
+        <div class="meter"><div id="tested-rate-fill" style="width:0%"></div></div>
+        <div class="stat-subnote" id="stat-tested-count"></div>
+      </div>
+      <div class="stat-tile glass" style="--tile-glow: rgba(20,184,166,0.16)">
+        <div class="label">درصد تست‌گرفته‌ها از کل اعضای ربات فروش</div>
+        <div class="value" id="stat-all-tested-rate">-</div>
+        <div class="meter"><div id="all-tested-rate-fill" style="width:0%"></div></div>
+        <div class="stat-subnote" id="stat-all-tested-count"></div>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div>
+        <div class="card glass">
+          <h2>اعضای عضوشده <span class="hint" id="jm-window-label">۷ روز اخیر · چت‌آیدی و یوزرنیم قابل کپی</span></h2>
+          <div class="kv-grid">
+            <div class="kv"><div class="k">اعضایی که خرید کرده‌اند</div><div class="v" id="jm-purchasers">-</div></div>
+            <div class="kv"><div class="k">میانگین مبلغ خریداری‌شده</div><div class="v" id="jm-avg-sum">-</div></div>
+            <div class="kv"><div class="k">درصد عضویت به خرید</div><div class="v" id="jm-rate">-</div></div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>یوزرنیم</th><th>چت‌آیدی</th><th>تاریخ عضویت</th><th>تعداد خرید</th><th>تست باقیمانده</th></tr></thead>
+              <tbody id="joined-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card glass">
+          <h2>کاربران برگشتی <span class="hint" id="rm-window-label">۷ روز اخیر · لفت داده و دوباره عضو شده</span></h2>
+          <div class="kv-grid">
+            <div class="kv"><div class="k">تعداد کاربران برگشتی</div><div class="v" id="rm-count">-</div></div>
+            <div class="kv"><div class="k">درصد از اعضای عضوشده</div><div class="v" id="rm-rate">-</div></div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>یوزرنیم</th><th>چت‌آیدی</th><th>آخرین عضویت</th><th>خرید قبل / بعد از بازگشت</th></tr></thead>
+              <tbody id="returning-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card glass">
+          <h2>روند جوین / لفت <span class="hint" id="chart-window-label">۷ روز اخیر</span></h2>
+          <div class="legend-row">
+            <span class="item"><span class="swatch" style="background:var(--series-join)"></span>جوین</span>
+            <span class="item"><span class="swatch" style="background:var(--series-leave)"></span>لفت</span>
+            <span class="item"><span class="swatch" style="background:var(--series-purchase)"></span>جوین‌های خریدار (کل سابقه)</span>
+            <span class="item"><span class="swatch" style="background:var(--series-rejoin)"></span>اعضای برگشتی</span>
+          </div>
+          <canvas id="trendChart"></canvas>
+        </div>
+
+        <div class="card glass">
+          <h2>آنالیتیکس لفت‌دهندگان</h2>
+          <div class="kv-grid">
+            <div class="kv"><div class="k">میانگین تاریخ عضویت (ربات فروش)</div><div class="v" id="lv-avg-join">-</div></div>
+            <div class="kv"><div class="k">میانگین تعداد خرید</div><div class="v" id="lv-avg-count">-</div></div>
+            <div class="kv"><div class="k">میانگین مبلغ خرید</div><div class="v" id="lv-avg-sum">-</div></div>
+            <div class="kv"><div class="k">مجموع مبلغ خرید لفت‌دهندگان</div><div class="v" id="lv-total-sum">-</div></div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>یوزرنیم</th><th>چت‌آیدی</th><th>تاریخ عضویت</th><th>تعداد خرید</th><th>مبلغ خرید</th><th>تست باقیمانده</th></tr></thead>
+              <tbody id="leavers-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card glass">
+          <h2>تازه‌واردهای بدون خرید</h2>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>یوزرنیم</th><th>چت‌آیدی</th><th>تاریخ عضویت</th></tr></thead>
+              <tbody id="zero-purchase-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="modal-overlay" id="add-channel-modal-overlay">
+  <div class="modal-box glass">
+    <h3>افزودن کانال و ربات فروش جدید</h3>
+    <div class="guide">قبل از ثبت، حتماً هم این ربات پنل هم ربات فروش جدید رو در کانال جدید ادمین کن. بعد از ثبت، برای فعال‌شدن این کانال باید سرویس ری‌استارت بشه.</div>
+    <div class="block-field">
+      <label>اسم دلخواه (برای نمایش تو پنل)</label>
+      <input type="text" id="ac-name" class="block-input" placeholder="مثلاً: کانال دوم" />
+    </div>
+    <div class="block-field">
+      <label>شناسه داخلی (فقط حروف انگلیسی کوچک، عدد یا خط‌تیره)</label>
+      <input type="text" id="ac-id" class="block-input" placeholder="مثلاً: second" />
+    </div>
+    <div class="block-field">
+      <label>آیدی عددی کانال</label>
+      <select id="ac-pending" class="block-input"><option value="">— اگه از لیست شناسایی‌شده‌ها هست، انتخابش کن —</option></select>
+      <input type="text" id="ac-channel-id" class="block-input" placeholder="یا دستی وارد کن، مثلاً: -1001234567890" style="margin-top:8px;" />
+    </div>
+    <div class="block-field">
+      <label>آدرس API ربات فروش</label>
+      <input type="text" id="ac-base-url" class="block-input" placeholder="https://example.com/api" />
+    </div>
+    <div class="block-field">
+      <label>توکن API ربات فروش</label>
+      <input type="text" id="ac-token" class="block-input" />
+    </div>
+    <div class="block-field">
+      <label>توکن ربات ادمین این کانال (همون ربات پنل، یا هر ربات دیگه‌ای که ادمین این کانال باشه)</label>
+      <input type="text" id="ac-admin-bot-token" class="block-input" />
+    </div>
+    <div class="block-field">
+      <label>چت‌آیدی ادمین (اعلان‌های لفت کردن اعضا اینجا فرستاده می‌شه)</label>
+      <input type="text" id="ac-admin-chat-id" class="block-input" placeholder="مثلاً: 123456789" />
+    </div>
+    <div class="block-actions">
+      <button class="nav-btn" id="ac-submit-btn">ثبت کانال</button>
+    </div>
+    <div class="form-note" id="ac-note"></div>
+    <button class="close-btn" id="ac-close-btn" style="margin-top:14px;">بستن</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="channel-settings-modal-overlay">
+  <div class="modal-box glass">
+    <h3>تنظیمات کانال</h3>
+    <div class="guide">تغییر آیدی کانال و آدرس/توکن ربات فروش بلافاصله بعد از ذخیره اعمال می‌شه. تغییر توکن ربات ادمین یا چت‌آیدی ادمین ذخیره می‌شه ولی فقط بعد از ری‌استارت سرویس واقعاً اعمال می‌شه.</div>
+    <div class="block-field">
+      <label>اسم دلخواه</label>
+      <input type="text" id="cs-name" class="block-input" />
+    </div>
+    <div class="block-field">
+      <label>آیدی عددی کانال</label>
+      <input type="text" id="cs-channel-id" class="block-input" />
+    </div>
+    <div class="block-field">
+      <label>آدرس API ربات فروش</label>
+      <input type="text" id="cs-base-url" class="block-input" />
+    </div>
+    <div class="block-field">
+      <label>توکن API ربات فروش</label>
+      <input type="text" id="cs-token" class="block-input" />
+    </div>
+    <div class="block-field">
+      <label>توکن ربات ادمین این کانال <span style="color:var(--text-secondary); font-weight:400;">(نیاز به ری‌استارت)</span></label>
+      <input type="text" id="cs-admin-bot-token" class="block-input" />
+    </div>
+    <div class="block-field">
+      <label>چت‌آیدی ادمین <span style="color:var(--text-secondary); font-weight:400;">(نیاز به ری‌استارت)</span></label>
+      <input type="text" id="cs-admin-chat-id" class="block-input" />
+    </div>
+    <div class="block-actions">
+      <button class="nav-btn" id="cs-submit-btn">ذخیره</button>
+    </div>
+    <div class="form-note" id="cs-note"></div>
+    <button class="close-btn" id="cs-close-btn" style="margin-top:14px;">بستن</button>
+  </div>
+</div>
+
+<script src="/static/vendor/chart.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

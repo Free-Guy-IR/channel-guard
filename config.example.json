@@ -1,0 +1,30 @@
+{
+  "panel_port": 900,
+  "panel_password": "CHANGE_ME_STRONG_PASSWORD",
+  "admin_path": "CHANGE_ME_RANDOM_URL_SEGMENT",
+  "refresh_interval_minutes": 15,
+  "window_days": 7,
+  "timezone": "Asia/Tehran",
+  "public_site_url": "https://your-domain.example.com:900",
+  "channels": [
+    {
+      "id": "main",
+      "name": "My Channel",
+      "channel_id": -1000000000000,
+      "sales_api_base_url": "https://your-sales-bot.example.com/api",
+      "sales_api_token": "CHANGE_ME",
+      "admin_bot_token": "CHANGE_ME:CHANGE_ME",
+      "admin_chat_id": 123456789
+    }
+  ],
+  "mysql": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "user": "channelguard_db",
+    "password": "CHANGE_ME_MYSQL_PASSWORD"
+  },
+  "backup_service": {
+    "url": "",
+    "token": ""
+  }
+}
